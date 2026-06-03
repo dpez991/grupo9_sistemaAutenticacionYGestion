@@ -17,7 +17,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 CREATE TABLE usuario (
     usercod bigint AUTO_INCREMENT PRIMARY KEY,
-    useremail varchar(80),
+    useremail varchar(80) UNIQUE,
     username varchar(80),
     userpswd varchar(128),
     userfching datetime,
@@ -26,8 +26,7 @@ CREATE TABLE usuario (
     userest char(3),
     useractcod varchar(128),
     userpswdchg varchar(128),
-    usertipo char(3),
-    UNIQUE KEY useremail_UNIQUE (useremail)
+    usertipo char(3)
 );
 
 CREATE TABLE roles (
@@ -75,43 +74,126 @@ CREATE TABLE bitacora (
 );
 
 -- ========================
--- DATOS BASE
+-- ROLES BASE
 -- ========================
 
-INSERT INTO roles VALUES
-('admin', 'Administrador', 'ACT'),
-('cliente', 'Cliente', 'ACT');
+INSERT INTO roles (rolescod, rolesdsc, rolesest) VALUES
+('admin', 'Administrador del sistema', 'ACT'),
+('cliente', 'Cliente del sistema', 'ACT');
 
-INSERT INTO funciones VALUES
-('Menu_Mantenimiento_Usuarios', 'Menu Usuarios', 'ACT', 'MNU'),
+-- ========================
+-- FUNCIONES (SEGÚN TU SISTEMA ACTUAL)
+-- ========================
+
+INSERT INTO funciones (fncod, fndsc, fnest, fntyp) VALUES
+
+-- MENÚS
+('Menu_Mantenimiento_Usuarios', 'Menu_Mantenimiento_Usuarios', 'ACT', 'MNU'),
+('Menu_Mantenimiento_Roles', 'Menu_Mantenimiento_Roles', 'ACT', 'MNU'),
+('Menu_PaymentCheckout', 'Menu_PaymentCheckout', 'ACT', 'MNU'),
+
+-- USUARIOS
 ('Mantenimientos_Usuarios_Listado', 'Listado Usuarios', 'ACT', 'CTR'),
 ('Mantenimientos_Usuarios_Formulario', 'Formulario Usuarios', 'ACT', 'CTR'),
+('Mantenimientos_Usuarios_Usuario', 'CRUD Usuarios', 'ACT', 'PRG'),
 
-('Menu_Mantenimiento_Roles', 'Menu Roles', 'ACT', 'MNU'),
+-- ROLES
 ('Mantenimientos_Roles_Listado', 'Listado Roles', 'ACT', 'CTR'),
-('Mantenimientos_Roles_Formulario', 'Formulario Roles', 'ACT', 'CTR');
+('Mantenimientos_Roles_Formulario', 'Formulario Roles', 'ACT', 'CTR'),
+('Mantenimientos_Roles_Rol', 'CRUD Roles', 'ACT', 'PRG');
+
+-- ========================
+-- ASIGNAR TODO AL ADMIN
+-- ========================
 
 INSERT INTO funciones_roles (rolescod, fncod, fnrolest, fnexp)
 SELECT 'admin', fncod, 'ACT', '2030-01-01'
 FROM funciones;
 
--- USUARIO ADMIN (opcional)
-INSERT INTO usuario (useremail, username, userpswd, userfching, userest, usertipo)
-VALUES ('admin@admin.com', 'Admin', '123', NOW(), 'ACT', 'ADM');
+-- ========================
+-- NOTA IMPORTANTE USUARIOS
+-- ========================
 
-INSERT INTO roles_usuarios VALUES
-(1, 'admin', 'ACT', NOW(), '2030-01-01');
+-- ⚠️ NO insertar usuarios manualmente
+-- porque las contraseñas están encriptadas
 
-INSERT INTO funciones (fncod, fndsc, fnest, fntyp) VALUES
-('Mantenimientos_Usuarios_Usuario', 'CRUD Usuarios', 'ACT', 'PRG'),
-('Mantenimientos_Roles_Rol', 'CRUD Roles', 'ACT', 'PRG');
+-- ✔ CREAR USUARIOS DESDE REGISTER
+-- ✔ Automáticamente se asigna el rol 'cliente'
 
-INSERT INTO funciones_roles (rolescod, fncod, fnrolest, fnexp)
-VALUES
-('admin', 'Mantenimientos_Usuarios_Usuario', 'ACT', '2030-01-01'),
-('admin', 'Mantenimientos_Roles_Rol', 'ACT', '2030-01-01')
-ON DUPLICATE KEY UPDATE fnrolest='ACT';
+-- ========================
+-- EJEMPLO DE LO QUE PASA INTERNAMENTE (NO EJECUTAR)
+-- ========================
 
-INSERT INTO funciones (fncod, fndsc, fnest, fntyp)
-VALUES ('Mantenimientos_Usuarios_Formulario', 'Gestión Roles Usuario', 'ACT', 'PRG')
-ON DUPLICATE KEY UPDATE fnest='ACT';
+-- INSERT INTO usuario (...)
+-- INSERT INTO roles_usuarios (usercod, 'cliente', 'ACT', NOW(), ...
+
+
+
+
+
+--================================================================================
+--tablas para panel ADMINISTRADOR
+--================================================================================
+
+--Aca estan incluidas las tablas de rutas y viajes que se necesitan para el panel de administrador, 
+--pero tambien para el cliente, por lo que se incluyen aqui para evitar problemas de integridad 
+--referencial al momento de crear las tablas de viajes y rutas, ya que estas son necesarias para la 
+--tabla de compras que se 
+--relaciona con la tabla de usuario.
+--
+USE nwdb;
+
+CREATE TABLE `rutas` (
+    `rutaId` int(11) NOT NULL AUTO_INCREMENT,
+    `origen` varchar(100) NOT NULL,
+    `destino` varchar(100) NOT NULL,
+    `estado` char(3) NOT NULL DEFAULT 'ACT',
+    PRIMARY KEY (`rutaId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `buses` (
+    `busId` int(12) NOT NULL AUTO_INCREMENT,
+    `numeroBus` varchar(50) NOT NULL,
+    `placa` varchar(20) NOT NULL,
+    `capacidad` int NOT NULL DEFAULT 45,
+    `busest` char(3) NOT NULL DEFAULT 'ACT',
+    PRIMARY KEY (`busId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `viajes` (
+    `viajeId` int(12) NOT NULL AUTO_INCREMENT,
+    `rutaId` int(12) NOT NULL,
+    `busId` int(12) DEFAULT NULL,
+    `fecha` date NOT NULL,
+    `hora` time NOT NULL,
+    `asientosDisponibles` int NOT NULL,
+    `estado` char(3) NOT NULL DEFAULT 'ACT',
+    PRIMARY KEY (`viajeId`),
+    KEY `ruta_idx` (`rutaId`),
+    KEY `bus_idx` (`busId`),
+    CONSTRAINT `viaje_ruta_fk`
+        FOREIGN KEY (`rutaId`)
+        REFERENCES `rutas` (`rutaId`),
+    CONSTRAINT `viaje_bus_fk`
+        FOREIGN KEY (`busId`)
+        REFERENCES `buses` (`busId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `compras` (
+    `compraId` int NOT NULL AUTO_INCREMENT,
+    `usercod` bigint NOT NULL,
+    `viajeId` int(12) NOT NULL,
+    `cantidadAsientos` int NOT NULL DEFAULT 1,
+    `total` decimal(10,2) NOT NULL,
+    `fechacompra` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `compraest` char(3) NOT NULL DEFAULT 'ACT',
+    PRIMARY KEY (`compraId`),
+    KEY `compras_usuario_idx` (`usercod`),
+    KEY `compras_viaje_idx` (`viajeId`),
+    CONSTRAINT `compras_usuario_fk`
+        FOREIGN KEY (`usercod`)
+        REFERENCES `usuario` (`usercod`),
+    CONSTRAINT `compras_viaje_fk`
+        FOREIGN KEY (`viajeId`)
+        REFERENCES `viajes` (`viajeId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
